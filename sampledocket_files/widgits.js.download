@@ -1,0 +1,313 @@
+// $Header: /usr/local/cvsroot/bankruptcy/web/lib/widgits.js,v 5.2 2009/11/28 03:26:07 jpd Exp $
+
+// RPM Packages: ao-bkecf-web-*
+// RPM Permissions: 444
+// RPM Owner: nobody
+// RPM Group: nobody
+// RPM Flags: configure
+
+CMECF.namespace("widgit.tags");
+
+
+// Functions from YAHOO.
+
+CMECF.widget.Panel = YAHOO.widget.Panel;
+
+
+
+CMECF.widgit.InformationPopUpPanel;
+CMECF.widgit.CreateInformationPopUpPanel = function(configuration) {
+	if ( ! CMECF.widgit.InformationPopUpPanel) {
+		if (! configuration.header || configuration.header.length == 0) {
+			configuration.header = "Information";
+		}
+		if (! configuration.message || configuration.message.length == 0) {
+			configuration.message = "No message specified";
+		}
+		if (! configuration.width || configuration.width.length == 0) {
+			configuration.width = 600;
+		}
+		var window_width = CMECF.MainMenu.getWindowWidth();
+		if (configuration.width + 35 > window_width) {
+			configuration.width = window_width - 35;
+		}
+		if (! configuration.height || configuration.height.length == 0) {
+			configuration.height = 300;
+		}
+		var window_height = CMECF.MainMenu.getWindowHeight();
+		if (configuration.height + 60 > window_height) {
+			configuration.height = window_height - 60;
+		}
+		CMECF.widgit.InformationPopUpPanel = new CMECF.widget.Panel("informationwindow", {
+			width:configuration.width + "px",
+			height:configuration.height + "px",
+			x:10,
+			y:50,
+			close:true,
+			visible:false,
+			draggable:true
+		});
+		CMECF.widgit.InformationPopUpPanel.setHeader(configuration.header);
+		CMECF.widgit.InformationPopUpPanel.setBody(configuration.message);
+		// Next line required to make scrolling work.
+		CMECF.widgit.InformationPopUpPanel.body.style.height=(configuration.height - 35) + "px";
+		CMECF.widgit.InformationPopUpPanel.render(document.body);
+	}
+	CMECF.widgit.InformationPopUpPanel.show();
+};
+
+
+
+CMECF.widgit.ProcessingWindow;
+CMECF.widgit.ProcessingWindowCount;
+
+CMECF.widgit.ProcessingWindowUpdate = function(message) {
+
+	// The width of this div is defined because IE6 does not obey the width parameter given to the panel.
+	var message_and_bar = message + "<div id='ProgressBar' style='width:190px'>.</div>";
+
+	if (CMECF.widgit.ProcessingWindow) {
+		CMECF.widgit.ProcessingWindow.setBody(message_and_bar);
+	}
+	else {
+
+		CMECF.widgit.ProcessingWindow = new CMECF.widget.Panel("processingwindow", {
+			width:"200px",
+			fixedcenter:true,
+			close:false,
+			draggable:true
+		});
+
+		CMECF.widgit.ProcessingWindow.setBody(message_and_bar);
+
+		if (navigator.userAgent.match(/MSIE/) != null) {
+			// IE can't handle an underlay, since it doesn't move with the window.
+			CMECF.widgit.ProcessingWindow.cfg.setProperty("underlay", "none");
+		}
+
+		if (navigator.userAgent.match(/Netscape|MSIE 6/) != null) {
+
+			// Netscape and IE6 needs to have the window put in a particular spot.
+
+			var middleX = Math.floor(CMECF.MainMenu.getWindowWidth() / 2) - 80;
+			if (middleX < 10) {
+				middleX = 10;
+			}
+			var middleY = Math.floor(CMECF.MainMenu.getWindowHeight() / 2) - 100;
+			if (middleY < 50) {
+				middleY = 50;
+			}
+
+			CMECF.widgit.ProcessingWindow.cfg.setProperty("fixedcenter", false);
+			CMECF.widgit.ProcessingWindow.cfg.setProperty("x", middleX);
+			CMECF.widgit.ProcessingWindow.cfg.setProperty("y", middleY);
+		}
+
+		if (navigator.appVersion.indexOf("MSIE") == -1) {
+			CMECF.widgit.ProcessingWindow.render();
+		}
+		else {
+			// IE cannot handle rendering this while the body hasn't finished loading.
+			CMECF.widgit.ProcessingWindow.show();
+		}
+		CMECF.widgit.ProcessingWindowWaiting();
+	}
+	CMECF.widgit.ProcessingWindowCount = 1;
+};
+
+
+
+CMECF.widgit.ProcessingWindowWaiting = function() {
+	var ProgressBar = document.getElementById('ProgressBar');
+	if (ProgressBar) {
+		CMECF.widgit.ProcessingWindowCount++;
+		if (CMECF.widgit.ProcessingWindowCount > 20) {
+			while (ProgressBar.firstChild) {
+				ProgressBar.removeChild(ProgressBar.firstChild);
+			}
+			CMECF.widgit.ProcessingWindowCount = 1;
+		}
+		ProgressBar.appendChild(document.createTextNode('.'));
+
+		// If this is not called by the user in 2 seconds, clear the window.
+		if (CMECF.widgit.ProcessingWindowTimeout) {
+	        window.clearTimeout(CMECF.widgit.ProcessingWindowTimeout);
+		}
+		CMECF.widgit.ProcessingWindowTimeout = window.setTimeout(CMECF.widgit.ProcessingWindowDestroy, 2000);
+	}
+};
+
+
+
+CMECF.widgit.ProcessingWindowDestroy = function() {
+
+	if (CMECF.widgit.ProcessingWindow) {
+		CMECF.widgit.ProcessingWindow.destroy();
+		CMECF.widgit.ProcessingWindow = null;
+	}
+};
+
+
+/*
+ * Set the x coordinate of all specified nodes to that of the first one
+ * If the first argument is a number, that will be the x value of all nodes
+ */
+CMECF.widgit.alignNodesVertically = function(id_list, x) {
+
+	var i, x, y;
+
+	if (x == null) {
+		x = CMECF.util.Dom.getX(id_list[0]);
+
+		// check if the browser (IE) has aknowledged the values yet
+		y = CMECF.util.Dom.getY(id_list[0]);
+		if(x == 0 && y == 0) {
+			window.setTimeout('CMECF.widgit.alignNodesVertically(id_list)', 0);
+			return 0;
+		}
+	}
+
+	// align the nodes
+	for (var i = 0; i < id_list.length; i++) {
+		CMECF.util.Dom.setX(id_list[i], x);
+	}
+
+	return x;
+};
+
+
+/*
+ * Given a list of labels and input field ids, line up the input fields and move
+ * the associated labels to be flush with the input elements.
+ * The optional list of other nodes will be lined up with the input elements as
+ * well. Note that the "labels" and "inputs" can be any node, not just labels
+ * and inputs.
+ */
+CMECF.widgit.alignSecondNodesVertically = function(labels, inputs, other_nodes) {
+
+	if (labels.length == 0) return 0;
+	if (inputs.length == 0) return 0;
+	if (labels.length != inputs.length) return 0;
+
+	var largest_x = 0;
+	var i, label_x, input_x;
+
+	// first pass to figure out which one is most indented
+	for (i = 0; i < inputs.length; i++) {
+		largest_x = Math.max(largest_x, CMECF.util.Dom.getX(inputs[i]));
+	}
+
+	// move the label nodes as much as the input nodes will move
+	for (i = 0; i < inputs.length; i++) {
+		input_x = CMECF.util.Dom.getX(inputs[i]);
+		if (input_x == largest_x)
+			continue;
+
+		label_x = CMECF.util.Dom.getX(labels[i]);
+		CMECF.util.Dom.setX(labels[i], label_x + (largest_x - input_x));
+	}
+
+	// line up input nodes and optional other nodes
+	CMECF.widgit.alignNodesVertically(inputs.concat(other_nodes), largest_x);
+
+	return largest_x;
+};
+
+
+
+/*
+ * CMECF.widgit.tags - dynamically added checkboxes selected from a list
+ *
+ * This library assumes the existence of 2 hidden variables named 'tags' and
+ * 'TagsWithoutFormat', and a span with id 'tag_span'. They must be printed
+ * using HTML and not dynamically created with JavaScript, so that going back to
+ * the page using the back button shows the tags that were added.
+ */
+
+CMECF.widgit.tags.exclude = '';
+
+
+
+CMECF.widgit.tags.clear = function() {
+	var element = document.getElementById("tag_span");
+	var node;
+	while (node = element.firstChild) {
+		element.removeChild(node);
+	}
+	document.forms[0].TagsWithFormat.value = '';
+	document.forms[0].tags.value = '';
+};
+
+
+
+CMECF.widgit.tags.add = function(selectedTag) {
+	if (selectedTag == CMECF.widgit.tags.exclude) {
+		return 1;
+	}
+
+	if (document.forms[0].tags.value.indexOf(selectedTag) == -1) {
+		document.forms[0].tags.value = document.forms[0].tags.value + selectedTag + "\n";
+		document.forms[0].TagsWithFormat.value = document.forms[0].TagsWithFormat.value + selectedTag + "^^";
+		CMECF.widgit.tags.reset();
+	}
+	document.forms[0].searchText.focus();
+	return 0;
+};
+
+
+
+CMECF.widgit.tags.reset = function() {
+	var element = document.getElementById("tag_span");
+	var node;
+	while (node = element.firstChild) {
+		element.removeChild(node);
+	}
+
+	var counter = 0;
+	var tags = document.forms[0].tags.value.split("\n");
+	tags.sort();
+
+	while (counter < tags.length) {
+		if (tags[counter].length > 0) {
+			var removeButton = document.createElement("input");
+			removeButton.setAttribute ("type", "checkbox");
+			removeButton.setAttribute ("name", "Counter" + counter);
+			removeButton.setAttribute ("checked", true);
+			removeButton.setAttribute ("value", tags[counter]);
+			removeButton.onclick = CMECF.widgit.tags.remove;
+			node = document.createElement("span");
+			node.appendChild(removeButton);
+			node.appendChild(document.createTextNode(tags[counter] + "\n"));
+			node.appendChild(document.createElement("br"));
+			element.appendChild(node);
+			removeButton.checked = true;
+			counter++;
+		} else {
+			tags.splice(counter, 1);
+		}
+	}
+};
+
+
+
+CMECF.widgit.tags.remove = function(event) {
+	var tag;
+	if (event) {
+		tag = event.target.value;
+	} else {
+		tag = window.event.srcElement.value;
+	}
+	var tags = document.forms[0].tags.value.split("\n");
+	var counter = tags.length;
+	while (counter > 0) {
+		counter--;
+		if (tags[counter] == tag) {
+			tags.splice (counter, 1);
+			counter++;
+		}
+	}
+	document.forms[0].tags.value = tags.join("\n");
+	document.forms[0].TagsWithFormat.value = tags.join("^^");
+	CMECF.widgit.tags.reset();
+};
+
